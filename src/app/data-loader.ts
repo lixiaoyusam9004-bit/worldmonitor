@@ -1289,7 +1289,7 @@ export class DataLoaderManager implements AppModule {
     tasks.push((async () => {
       try {
         const civilianFlights = await fetchLiveFlights();
-        if (civilianFlights.length > 0 && this.ctx.mapLayers.liveFlights) {
+        if (civilianFlights.length > 0) {
           this.ctx.map?.setLiveFlights(civilianFlights);
         }
       } catch { /* non-critical */ }
@@ -1795,7 +1795,7 @@ export class DataLoaderManager implements AppModule {
       this.ctx.map?.setMilitaryFlights(flightData.flights, flightData.clusters);
       this.ctx.map?.setMilitaryVessels(vesselData.vessels, vesselData.clusters);
       fetchLiveFlights().then(civilianFlights => {
-        if (civilianFlights.length > 0 && this.ctx.mapLayers.liveFlights) {
+        if (civilianFlights.length > 0) {
           this.ctx.map?.setLiveFlights(civilianFlights);
         }
       }).catch(() => {});
