@@ -1,13 +1,12 @@
 import type { CivilianFlight } from '@/types';
 import { createCircuitBreaker } from '@/utils';
 
-const OPENSKY_PROXY_URL = '/api/opensky';
+const OPENSKY_PROXY_URL = '/api/opensky';          // relay (requires WS_RELAY_URL)
+const OPENSKY_DIRECT_URL = '/api/opensky-direct';  // server-side proxy, no WS_RELAY_URL needed
 const wsRelayUrl = import.meta.env.VITE_WS_RELAY_URL || '';
 const DIRECT_RELAY_URL = wsRelayUrl
   ? wsRelayUrl.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/$/, '') + '/opensky'
   : '';
-// OpenSky public API — free tier, no credentials needed, supports CORS
-const OPENSKY_PUBLIC_URL = 'https://opensky-network.org/api/states/all';
 
 const isLocalhostRuntime =
   typeof window !== 'undefined' &&
@@ -89,17 +88,16 @@ const breaker = createCircuitBreaker<CivilianFlight[]>({
 
 /**
  * Build candidate URL list in priority order:
- *  1. Vercel relay (/api/opensky) — uses WS_RELAY_URL + credentials
- *  2. Direct relay URL (localhost dev only)
- *  3. OpenSky public API — free, no credentials, fallback for forks without WS_RELAY_URL
+ *  1. /api/opensky         — Vercel relay (requires WS_RELAY_URL + credentials)
+ *  2. DIRECT_RELAY_URL     — direct relay (localhost dev only)
+ *  3. /api/opensky-direct  — server-side proxy to OpenSky, no WS_RELAY_URL needed
  */
 function buildUrls(): string[] {
   const urls: string[] = [OPENSKY_PROXY_URL];
   if (isLocalhostRuntime && DIRECT_RELAY_URL) {
     urls.push(DIRECT_RELAY_URL);
   }
-  // Always add public API as final fallback
-  urls.push(OPENSKY_PUBLIC_URL);
+  urls.push(OPENSKY_DIRECT_URL);
   return urls;
 }
 
