@@ -1,12 +1,14 @@
 import type { CivilianFlight } from '@/types';
 import { createCircuitBreaker } from '@/utils';
-import { isFeatureAvailable } from './runtime-config';
 
 const OPENSKY_PROXY_URL = '/api/opensky';
 const wsRelayUrl = import.meta.env.VITE_WS_RELAY_URL || '';
-const DIRECT_OPENSKY_BASE_URL = wsRelayUrl
+const DIRECT_RELAY_URL = wsRelayUrl
   ? wsRelayUrl.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/$/, '') + '/opensky'
   : '';
+// OpenSky public API — free tier, no credentials needed, supports CORS
+const OPENSKY_PUBLIC_URL = 'https://opensky-network.org/api/states/all';
+
 const isLocalhostRuntime =
   typeof window !== 'undefined' &&
   ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -71,7 +73,6 @@ function parseResponse(data: OpenSkyResponse): CivilianFlight[] {
 
   // Sample down if too many
   if (flights.length > MAX_FLIGHTS) {
-    // Shuffle deterministically by icao24 and take first MAX_FLIGHTS
     flights.sort((a, b) => a.id.localeCompare(b.id));
     return flights.slice(0, MAX_FLIGHTS);
   }
@@ -86,28 +87,39 @@ const breaker = createCircuitBreaker<CivilianFlight[]>({
   cacheTtlMs: 5 * 60 * 1000,
 });
 
-export async function fetchLiveFlights(): Promise<CivilianFlight[]> {
-  if (!isFeatureAvailable('openskyRelay')) return [];
+/**
+ * Build candidate URL list in priority order:
+ *  1. Vercel relay (/api/opensky) — uses WS_RELAY_URL + credentials
+ *  2. Direct relay URL (localhost dev only)
+ *  3. OpenSky public API — free, no credentials, fallback for forks without WS_RELAY_URL
+ */
+function buildUrls(): string[] {
+  const urls: string[] = [OPENSKY_PROXY_URL];
+  if (isLocalhostRuntime && DIRECT_RELAY_URL) {
+    urls.push(DIRECT_RELAY_URL);
+  }
+  // Always add public API as final fallback
+  urls.push(OPENSKY_PUBLIC_URL);
+  return urls;
+}
 
+export async function fetchLiveFlights(): Promise<CivilianFlight[]> {
   return breaker.execute(async () => {
     if (cache && Date.now() - cache.timestamp < CACHE_TTL) {
       return cache.data;
     }
 
-    const urls = [OPENSKY_PROXY_URL];
-    if (isLocalhostRuntime && DIRECT_OPENSKY_BASE_URL) {
-      urls.push(DIRECT_OPENSKY_BASE_URL);
-    }
-
-    for (const url of urls) {
+    for (const url of buildUrls()) {
       try {
         const res = await fetch(url, { headers: { Accept: 'application/json' } });
         if (!res.ok) {
-          if (res.status === 429) console.warn('[Live Flights] Rate limited');
+          if (res.status === 429) console.warn('[Live Flights] Rate limited on', url);
           continue;
         }
         const data: OpenSkyResponse = await res.json();
         const flights = parseResponse(data);
+        if (flights.length === 0) continue; // try next source
+        console.info(`[Live Flights] ${flights.length} flights from ${url}`);
         cache = { data: flights, timestamp: Date.now() };
         return flights;
       } catch {
