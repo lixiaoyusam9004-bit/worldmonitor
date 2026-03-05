@@ -29,7 +29,7 @@ import { AI_DATA_CENTERS } from '@/config/ai-datacenters';
 import { getCountryBbox, getCountriesGeoJson } from '@/services/country-geometry';
 import { escapeHtml } from '@/utils/sanitize';
 import type { FeatureCollection, Geometry } from 'geojson';
-import type { MapLayers, Hotspot, MilitaryFlight, MilitaryVessel, NaturalEvent, InternetOutage, CyberThreat, SocialUnrestEvent, UcdpGeoEvent, MilitaryBase, GammaIrradiator, Spaceport, EconomicCenter, StrategicWaterway, CriticalMineralProject, AIDataCenter, UnderseaCable, Pipeline, CableAdvisory, RepairShip, AisDisruptionEvent, AisDensityZone, AisDisruptionType } from '@/types';
+import type { MapLayers, Hotspot, MilitaryFlight, MilitaryVessel, NaturalEvent, InternetOutage, CyberThreat, SocialUnrestEvent, UcdpGeoEvent, MilitaryBase, GammaIrradiator, Spaceport, EconomicCenter, StrategicWaterway, CriticalMineralProject, AIDataCenter, UnderseaCable, Pipeline, CableAdvisory, RepairShip, AisDisruptionEvent, AisDensityZone, AisDisruptionType, CivilianFlight } from '@/types';
 import type { Earthquake } from '@/services/earthquakes';
 import type { AirportDelayAlert } from '@/services/aviation';
 import type { MapContainerState, MapView, TimeRange } from './MapContainer';
@@ -274,6 +274,13 @@ interface AisDisruptionMarker extends BaseMarker {
   severity: AisDisruptionEvent['severity'];
   description: string;
 }
+interface LiveFlightMarker extends BaseMarker {
+  _kind: 'liveflight';
+  id: string;
+  callsign: string;
+  heading: number;
+  originCountry: string;
+}
 interface GlobePath {
   id: string;
   name: string;
@@ -300,7 +307,7 @@ type GlobeMarker =
   | ConflictZoneMarker | MilBaseMarker | NuclearSiteMarker | IrradiatorSiteMarker | SpaceportSiteMarker
   | EarthquakeMarker | EconomicMarker | DatacenterMarker | WaterwayMarker | MineralMarker
   | FlightDelayMarker | CableAdvisoryMarker | RepairShipMarker | AisDisruptionMarker
-  | NewsLocationMarker | FlashMarker;
+  | LiveFlightMarker | NewsLocationMarker | FlashMarker;
 
 interface GlobeControlsLike {
   autoRotate: boolean;
@@ -329,6 +336,7 @@ export class GlobeMap {
 
   // Current data
   private hotspots: HotspotMarker[] = [];
+  private liveFlightMarkers: GlobeMarker[] = [];
   private flights: FlightMarker[] = [];
   private vessels: VesselMarker[] = [];
   private weatherMarkers: WeatherMarker[] = [];
@@ -539,7 +547,7 @@ export class GlobeMap {
       .htmlLng((d: object) => (d as GlobeMarker)._lng)
       .htmlAltitude((d: object) => {
         const m = d as GlobeMarker;
-        if (m._kind === 'flight' || m._kind === 'vessel') return 0.012;
+        if (m._kind === 'flight' || m._kind === 'vessel' || m._kind === 'liveflight') return 0.012;
         if (m._kind === 'hotspot') return 0.005;
         return 0.003;
       })
@@ -610,6 +618,13 @@ export class GlobeMap {
           box-shadow:0 0 8px 2px ${c}88;
         "></div>`;
       el.title = d.name;
+    } else if (d._kind === 'liveflight') {
+      const heading = d.heading ?? 0;
+      el.innerHTML = `
+        <div style="transform:rotate(${heading}deg);font-size:9px;color:#64c8ff;text-shadow:0 0 4px #64c8ff88;line-height:1;opacity:0.8;">
+          ✈
+        </div>`;
+      el.title = `${d.callsign} (${d.originCountry})`;
     } else if (d._kind === 'flight') {
       const heading = d.heading ?? 0;
       const typeColors: Record<string, string> = {
@@ -1112,6 +1127,7 @@ export class GlobeMap {
     if (this.layers.nuclear) markers.push(...this.nuclearSiteMarkers);
     if (this.layers.irradiators) markers.push(...this.irradiatorSiteMarkers);
     if (this.layers.spaceports) markers.push(...this.spaceportSiteMarkers);
+    if (this.layers.liveFlights) markers.push(...this.liveFlightMarkers);
     if (this.layers.military) {
       markers.push(...this.flights);
       markers.push(...this.vessels);
@@ -1424,6 +1440,19 @@ export class GlobeMap {
         status: p.status,
       })),
     ];
+  }
+
+  public setLiveFlights(flights: CivilianFlight[]): void {
+    this.liveFlightMarkers = flights.map(f => ({
+      _kind: 'liveflight' as const,
+      _lat: f.lat,
+      _lng: f.lon,
+      id: f.id,
+      callsign: f.callsign,
+      heading: f.heading,
+      originCountry: f.originCountry,
+    }));
+    this.flushMarkers();
   }
 
   public setMilitaryFlights(flights: MilitaryFlight[]): void {

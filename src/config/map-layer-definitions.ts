@@ -66,6 +66,7 @@ export const LAYER_REGISTRY: Record<keyof MapLayers, LayerDefinition> = {
   happiness:                def('happiness',                '&#128522;', 'happiness',                'World Happiness'),
   speciesRecovery:          def('speciesRecovery',          '&#128062;', 'speciesRecovery',          'Species Recovery'),
   renewableInstallations:   def('renewableInstallations',   '&#9889;',   'renewableInstallations',   'Clean Energy'),
+  liveFlights:              def('liveFlights',              '&#9992;',   'liveFlights',              'Live Flights'),
 };
 
 const VARIANT_LAYER_ORDER: Record<MapVariant, Array<keyof MapLayers>> = {
@@ -73,7 +74,7 @@ const VARIANT_LAYER_ORDER: Record<MapVariant, Array<keyof MapLayers>> = {
     'iranAttacks', 'hotspots', 'conflicts', 'geopoliticalBoundaries',
     'bases', 'nuclear', 'irradiators', 'spaceports',
     'cables', 'pipelines', 'datacenters', 'military',
-    'ais', 'tradeRoutes', 'flights', 'protests',
+    'ais', 'tradeRoutes', 'flights', 'liveFlights', 'protests',
     'ucdpEvents', 'displacement', 'climate', 'weather',
     'outages', 'cyberThreats', 'natural', 'fires',
     'waterways', 'economic', 'minerals', 'gpsJamming',

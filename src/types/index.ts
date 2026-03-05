@@ -572,6 +572,8 @@ export interface MapLayers {
   ciiChoropleth: boolean;
   // Overlay layers
   dayNight: boolean;
+  // Live civilian flight tracking (OpenSky)
+  liveFlights: boolean;
 }
 
 export interface AIDataCenter {
@@ -785,6 +787,20 @@ export interface MilitaryFlightCluster {
   flights: MilitaryFlight[];
   dominantOperator?: MilitaryOperator;
   activityType?: 'exercise' | 'patrol' | 'transport' | 'unknown';
+}
+
+// Civilian (OpenSky) real-time flight tracking
+export interface CivilianFlight {
+  id: string;          // icao24
+  callsign: string;
+  originCountry: string;
+  lat: number;
+  lon: number;
+  altitude: number;    // feet
+  heading: number;     // degrees
+  speed: number;       // knots
+  onGround: boolean;
+  lastSeen: Date;
 }
 
 // Military/Special Vessel Tracking Types

@@ -57,6 +57,7 @@ import {
   fetchChokepointStatus,
   fetchCriticalMinerals,
 } from '@/services';
+import { fetchLiveFlights } from '@/services/live-flights';
 import { checkBatchForBreakingAlerts, dispatchOrefBreakingAlert } from '@/services/breaking-news-alerts';
 import { mlWorker } from '@/services/ml-worker';
 import { clusterNewsHybrid } from '@/services/clustering';
@@ -1287,6 +1288,15 @@ export class DataLoaderManager implements AppModule {
 
     tasks.push((async () => {
       try {
+        const civilianFlights = await fetchLiveFlights();
+        if (civilianFlights.length > 0 && this.ctx.mapLayers.liveFlights) {
+          this.ctx.map?.setLiveFlights(civilianFlights);
+        }
+      } catch { /* non-critical */ }
+    })());
+
+    tasks.push((async () => {
+      try {
         if (isMilitaryVesselTrackingConfigured()) {
           initMilitaryVesselStream();
         }
@@ -1784,6 +1794,11 @@ export class DataLoaderManager implements AppModule {
       }).catch(() => {});
       this.ctx.map?.setMilitaryFlights(flightData.flights, flightData.clusters);
       this.ctx.map?.setMilitaryVessels(vesselData.vessels, vesselData.clusters);
+      fetchLiveFlights().then(civilianFlights => {
+        if (civilianFlights.length > 0 && this.ctx.mapLayers.liveFlights) {
+          this.ctx.map?.setLiveFlights(civilianFlights);
+        }
+      }).catch(() => {});
       ingestFlights(flightData.flights);
       ingestVessels(vesselData.vessels);
       ingestMilitaryForCII(flightData.flights, vesselData.vessels);

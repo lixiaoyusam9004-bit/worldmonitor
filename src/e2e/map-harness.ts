@@ -182,6 +182,7 @@ const allLayersEnabled: MapLayers = {
   iranAttacks: false,
   ciiChoropleth: false,
   dayNight: true,
+  liveFlights: true,
 };
 
 const allLayersDisabled: MapLayers = {
@@ -231,6 +232,7 @@ const allLayersDisabled: MapLayers = {
   iranAttacks: false,
   ciiChoropleth: false,
   dayNight: false,
+  liveFlights: false,
 };
 
 const SEEDED_NEWS_LOCATIONS: Array<{

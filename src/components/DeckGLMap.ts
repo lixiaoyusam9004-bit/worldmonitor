@@ -34,6 +34,7 @@ import type {
   CyberThreat,
   CableHealthRecord,
   MilitaryBaseEnriched,
+  CivilianFlight,
 } from '@/types';
 import { fetchMilitaryBases, type MilitaryBaseCluster as ServerBaseCluster } from '@/services/military-bases';
 import type { AirportDelayAlert } from '@/services/aviation';
@@ -203,6 +204,7 @@ function getOverlayColors() {
     earthquake: [255, 100, 50, 200] as [number, number, number, number],
     vesselMilitary: [255, 100, 100, 220] as [number, number, number, number],
     flightMilitary: [255, 50, 50, 220] as [number, number, number, number],
+    flightCivilian: [100, 200, 255, 180] as [number, number, number, number],
     protest: [255, 150, 0, 200] as [number, number, number, number],
     outage: [255, 50, 50, 180] as [number, number, number, number],
     weather: [100, 150, 255, 180] as [number, number, number, number],
@@ -299,6 +301,7 @@ export class DeckGLMap {
   private repairShips: RepairShip[] = [];
   private healthByCableId: Record<string, CableHealthRecord> = {};
   private protests: SocialUnrestEvent[] = [];
+  private liveFlights: CivilianFlight[] = [];
   private militaryFlights: MilitaryFlight[] = [];
   private militaryFlightClusters: MilitaryFlightCluster[] = [];
   private militaryVessels: MilitaryVessel[] = [];
@@ -1044,6 +1047,7 @@ export class DeckGLMap {
     const filteredOutages = mapLayers.outages ? this.filterByTime(this.outages, (outage) => outage.pubDate) : [];
     const filteredCableAdvisories = mapLayers.cables ? this.filterByTime(this.cableAdvisories, (advisory) => advisory.reported) : [];
     const filteredFlightDelays = mapLayers.flights ? this.filterByTime(this.flightDelays, (delay) => delay.updatedAt) : [];
+    const filteredLiveFlights = mapLayers.liveFlights ? this.filterByTime(this.liveFlights, (f) => f.lastSeen) : [];
     const filteredMilitaryFlights = mapLayers.military ? this.filterByTime(this.militaryFlights, (flight) => flight.lastSeen) : [];
     const filteredMilitaryVessels = mapLayers.military ? this.filterByTime(this.militaryVessels, (vessel) => vessel.lastAisUpdate) : [];
     const filteredMilitaryFlightClusters = mapLayers.military ? this.filterMilitaryFlightClustersByTime(this.militaryFlightClusters) : [];
@@ -1209,6 +1213,11 @@ export class DeckGLMap {
     // Military vessel clusters layer
     if (mapLayers.military && filteredMilitaryVesselClusters.length > 0) {
       layers.push(this.createMilitaryVesselClustersLayer(filteredMilitaryVesselClusters));
+    }
+
+    // Live civilian flights layer
+    if (mapLayers.liveFlights && filteredLiveFlights.length > 0) {
+      layers.push(this.createLiveFlightsLayer(filteredLiveFlights));
     }
 
     // Military flights layer
@@ -1952,6 +1961,19 @@ export class DeckGLMap {
       },
       radiusMinPixels: 8,
       radiusMaxPixels: 25,
+      pickable: true,
+    });
+  }
+
+  private createLiveFlightsLayer(flights: CivilianFlight[]): ScatterplotLayer {
+    return new ScatterplotLayer({
+      id: 'live-flights-layer',
+      data: flights,
+      getPosition: (d) => [d.lon, d.lat],
+      getRadius: 6000,
+      getFillColor: COLORS.flightCivilian,
+      radiusMinPixels: 2,
+      radiusMaxPixels: 8,
       pickable: true,
     });
   }
@@ -2806,6 +2828,8 @@ export class DeckGLMap {
         return { html: `<div class="deckgl-tooltip"><strong>M${(obj.magnitude || 0).toFixed(1)} ${t('components.deckgl.tooltip.earthquake')}</strong><br/>${text(obj.place)}</div>` };
       case 'military-vessels-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.name)}</strong><br/>${text(obj.operatorCountry)}</div>` };
+      case 'live-flights-layer':
+        return { html: `<div class="deckgl-tooltip"><strong>${text(obj.callsign)}</strong><br/>${text(obj.originCountry)}<br/>${obj.altitude ? text(obj.altitude) + ' ft' : ''}</div>` };
       case 'military-flights-layer':
         return { html: `<div class="deckgl-tooltip"><strong>${text(obj.callsign || obj.registration || t('components.deckgl.tooltip.militaryAircraft'))}</strong><br/>${text(obj.type)}</div>` };
       case 'military-vessel-clusters-layer':
@@ -4018,6 +4042,11 @@ export class DeckGLMap {
 
   public setFlightDelays(delays: AirportDelayAlert[]): void {
     this.flightDelays = delays;
+    this.render();
+  }
+
+  public setLiveFlights(flights: CivilianFlight[]): void {
+    this.liveFlights = flights;
     this.render();
   }
 

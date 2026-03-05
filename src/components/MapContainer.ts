@@ -27,6 +27,7 @@ import type {
   UcdpGeoEvent,
   CyberThreat,
   CableHealthRecord,
+  CivilianFlight,
 } from '@/types';
 import type { AirportDelayAlert } from '@/services/aviation';
 import type { DisplacementFlow } from '@/services/displacement';
@@ -324,6 +325,11 @@ export class MapContainer {
     } else {
       this.svgMap?.setFlightDelays(delays);
     }
+  }
+
+  public setLiveFlights(flights: CivilianFlight[]): void {
+    if (this.useGlobe) { this.globeMap?.setLiveFlights(flights); return; }
+    if (this.useDeckGL) { this.deckGLMap?.setLiveFlights(flights); } else { this.svgMap?.setLiveFlights?.(flights); }
   }
 
   public setMilitaryFlights(flights: MilitaryFlight[], clusters: MilitaryFlightCluster[] = []): void {
